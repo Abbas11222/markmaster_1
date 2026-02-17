@@ -10,7 +10,7 @@ from objective2_llm import compare_ai_with_human
 from question_groupby import group_by_question
 
 # NEW
-from upload_pics import prepare_upload_folder, clear_temp_folder
+from upload_pics import prepare_upload_folder, clear_temp_folder, folder_has_images
 
 
 # ---------------- CONFIG ----------------
@@ -74,11 +74,7 @@ TOTAL_MARKS = st.number_input(
 )
 
 
-from upload_pics import (
-    prepare_upload_folder,
-    clear_temp_folder,
-    folder_has_images
-)
+
 
 # =====================================================
 # PROCESS BUTTON
@@ -205,6 +201,7 @@ if st.session_state.processed:
     model_text = flatten_text(st.session_state.model_answer)
     student_text = flatten_text(st.session_state.student_answer)
 
+    # We iterate through the questions
     for qid in st.session_state.question_scores:
 
         ai_score_q = st.session_state.question_scores[qid]
@@ -212,32 +209,36 @@ if st.session_state.processed:
 
         with st.expander(f"Moderation Panel — {qid}"):
 
-            st.write(f"AI Score: {round(ai_score_q,2)}")
+            st.write(f"**AI Score:** {round(ai_score_q, 2)}")
 
             human_score = st.number_input(
                 f"Human score for Question {qid}",
                 min_value=0.0,
                 max_value=100.0,
                 step=0.5,
-                key=f"human_score_{qid}"
+                key=f"human_score_input_{qid}" # Unique Key 1
             )
 
-            st.write("Topic Feedback")
+            st.write("### Topic Feedback")
             human_feedback = {}
 
-            for item in breakdown_q:
+            # FIXED LOOP: Added enumerate for a perfectly unique key
+            for idx, item in enumerate(breakdown_q):
                 if "topic" in item:
+                    topic_name = item['topic']
+                    
+                    # We combine QID, Topic Name, and Index to ensure NO key collision
                     fb = st.text_area(
-                        f"Feed Back for : {item['topic']}",
-                        key=f"feedback_{qid}_{item['topic']}"
+                        label=f"Feedback for Topic: {topic_name}",
+                        key=f"fb_area_{qid}_{topic_name}_{idx}" # Unique Key 2
                     )
+                    
                     if fb.strip():
-                        human_feedback[item["topic"]] = fb.strip()
+                        human_feedback[topic_name] = fb.strip()
 
-            if st.button(f"Run Analysis — {qid}", key=f"analyze_{qid}"):
+            if st.button(f"Run Analysis — {qid}", key=f"btn_analyze_{qid}"): # Unique Key 3
 
                 with st.spinner(f"Analyzing {qid}..."):
-
                     analysis = compare_ai_with_human(
                         model_text=model_text,
                         student_text=student_text,
@@ -248,8 +249,10 @@ if st.session_state.processed:
                     )
 
                     st.session_state.analysis_results[qid] = analysis
-                    st.success("Analysis complete")
+                    st.success(f"Analysis for {qid} complete!")
 
+            # Display the result if it exists in state
             if qid in st.session_state.analysis_results:
-                st.markdown("### Analysis Result")
-                st.markdown(st.session_state.analysis_results[qid])
+                st.markdown("---")
+                st.markdown("### 📝 Analysis Result")
+                st.info(st.session_state.analysis_results[qid])
